@@ -4,6 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from main.tasks import updateBanner, updateBanners
 from celery.result import AsyncResult
+from main.models import LastUpdateState
 
 @ensure_csrf_cookie
 def index(request):
@@ -26,11 +27,13 @@ def request_update(request):
 	if request.session.get("task_id", False):
 		res = AsyncResult(request.session["task_id"])
 		responseDict["state"] = res.state
-		try:
+		if res.state == "PROGRESS":
 			responseDict["current"] = res.info.get("current")
 			responseDict["total"] = res.info.get("total")
-		except AttributeError:
-			pass
+		else:
+			last_update = LastUpdateState.objects.get(pk=1)
+			responseDict["current"] = last_update.num_processed
+			responseDict["total"] = last_update.num_total
 			
 		if res.state in ("SUCCESS", "FAILURE"):
 			del request.session["task_id"]
@@ -45,5 +48,16 @@ def request_update(request):
 	return response
 
 def get_task_status(request):
-	responseDict = {"current": 0, "total": 0, "state": "running"}
+	responseDict = {"current": 0, "total": 0, "state": "idle"}
+	if request.session.get("task_id", False):
+		res = AsyncResult(request.session["task_id"])
+		responseDict["state"] = res.state
+		if res.state == "PROGRESS":
+			responseDict["current"] = res.info.get("current")
+			responseDict["total"] = res.info.get("total")
+		else:
+			last_update = LastUpdateState.objects.get(pk=1)
+			responseDict["current"] = last_update.num_processed
+			responseDict["total"] = last_update.num_total
+	
 	return JsonResponse(responseDict)

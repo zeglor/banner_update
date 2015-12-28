@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from time import sleep
-from main.models import LastUpdateState, Banner
 
 from celery import shared_task, task
 from updateBanner.celery import app
@@ -33,8 +32,9 @@ def updateBanner(self):
 
 @app.task(bind=True)
 def updateBanners(self):
+	from main.models import LastUpdateState, Banner
+	lastUpdateState = LastUpdateState.objects.get(pk=1)
 	try:
-		lastUpdateState = LastUpdateState.objects.get(pk=1)
 		# Get campaign ids from yandex.direct
 		campaign_ids = apiGetCampaignsIds()
 		# Now we know total number of campaigns. Update status in DB
@@ -68,5 +68,10 @@ def updateBanners(self):
 				meta={'current': campaign_indx, 'total': len(campaign_ids)})
 	except Exception:
 		logger.error("Unknown exception during task run")
+		lastUpdateState.status = LastUpdateState.FAIL
+		lastUpdateState.save()
 		raise
+	else:
+		lastUpdateState.status = LastUpdateState.SUCCESS
+		lastUpdateState.save()
 	return

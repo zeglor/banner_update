@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from django.db import models, transaction
 from django.utils import timezone
+from main.tasks import updateBanners
 
 # Create your models here.
 
@@ -39,6 +40,7 @@ class UpdateResult(BaseUpdateTask):
 
 class LastUpdateState(BaseUpdateTask):
 	update_result_key= models.ForeignKey(UpdateResult, null=True)
+	task_id = models.CharField(max_length = 200, default = '')
 	
 	def update_state(self, num_processed, num_total=None):
 		"""
@@ -63,7 +65,8 @@ class LastUpdateState(BaseUpdateTask):
 		Tries to launch update task. If such task is already running,
 		throws AlreadyRunning exception
 		"""
-		#!! transaction.on_commit(startCeleryTask)
+		# Setup function to be called on transaction successful commit
+		transaction.on_commit(launch_update)
 		# Assume for now that status row already exists
 		with transaction.atomic():
 			lastUpdateState = LastUpdateState.objects.filter(pk=1).select_for_update()[0]
@@ -92,3 +95,13 @@ class Banner(models.Model):
 		"""
 		banners = cls.objects.filter(campaign_id=campaign_id)
 		return [banner.banner_id for banner in banners]
+
+def launch_update():
+	"""
+	Starts celery task and updates db record with task id
+	"""
+	last_update_result = LastUpdateState.objects.get(pk=1)
+	task = updateBanners.delay()
+	last_update_result.status = LastUpdateState.RUNNING
+	last_update_result.task_id = task.id
+	last_update_result.save()
