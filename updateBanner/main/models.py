@@ -71,8 +71,7 @@ class LastUpdateState(BaseUpdateTask):
 		with transaction.atomic():
 			lastUpdateState = LastUpdateState.objects.filter(pk=1).select_for_update()[0]
 			if lastUpdateState.status == cls.RUNNING:
-				#raise AlreadyRunning
-				pass
+				raise AlreadyRunning
 			# Task is not running. We can start new task
 			# First, create new UpdateResult instance
 			updateResult = UpdateResult(status=cls.RUNNING, started_datetime=timezone.now())
@@ -105,3 +104,6 @@ def launch_update():
 	last_update_result.status = LastUpdateState.RUNNING
 	last_update_result.task_id = task.id
 	last_update_result.save()
+
+class AlreadyRunning(Exception):
+	pass
