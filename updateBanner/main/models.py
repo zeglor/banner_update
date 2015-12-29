@@ -59,16 +59,37 @@ class LastUpdateState(BaseUpdateTask):
 			self.save()
 			updateResult.save()
 	
+	def update_status(self, status):
+		"""
+		Update status of LastUpdateState instance and bound UpdateResult instance
+		"""
+		with transaction.atomic():
+			#get bound updateResult instance
+			updateResult = self.update_result_key
+			
+			self.status = status
+			updateResult.status = status
+			
+			if status in (self.FAIL, self.SUCCESS):
+				updateResult.ended_datetime = timezone.now()
+			
+			if status == self.RUNNING:
+				updateResult.started_datetime = timezone.now()
+			
+			updateResult.save()
+			self.save()
+	
 	@classmethod
 	def update_exclusive(cls):
 		"""
 		Tries to launch update task. If such task is already running,
 		throws AlreadyRunning exception
 		"""
-		# Setup function to be called on transaction successful commit
-		transaction.on_commit(launch_update)
 		# Assume for now that status row already exists
 		with transaction.atomic():
+			# Setup function to be called on transaction successful commit
+			transaction.on_commit(launch_update)
+			
 			lastUpdateState = LastUpdateState.objects.filter(pk=1).select_for_update()[0]
 			if lastUpdateState.status == cls.RUNNING:
 				raise AlreadyRunning
@@ -76,9 +97,9 @@ class LastUpdateState(BaseUpdateTask):
 			# First, create new UpdateResult instance
 			updateResult = UpdateResult(status=cls.RUNNING, started_datetime=timezone.now())
 			updateResult.save()
+			# Now update lastUpdateState instance
 			lastUpdateState.update_result_key = updateResult
-			lastUpdateState.started_datetime = timezone.now()
-			lastUpdateState.ended_datetime = None
+			lastUpdateState.status = cls.RUNNING
 			lastUpdateState.save()
 
 class Banner(models.Model):
@@ -101,7 +122,6 @@ def launch_update():
 	"""
 	last_update_result = LastUpdateState.objects.get(pk=1)
 	task = updateBanners.delay()
-	last_update_result.status = LastUpdateState.RUNNING
 	last_update_result.task_id = task.id
 	last_update_result.save()
 

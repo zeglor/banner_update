@@ -4,6 +4,7 @@ from time import sleep
 from celery import shared_task, task
 from updateBanner.celery import app
 from celery.utils.log import get_task_logger
+from django.utils import timezone
 from .api_yandex import apiGetCampaignsIds, apiGetBanners, ApiError
 
 logger = get_task_logger(__name__)
@@ -68,10 +69,8 @@ def updateBanners(self):
 				meta={'current': campaign_indx, 'total': len(campaign_ids)})
 	except Exception:
 		logger.error("Unknown exception during task run")
-		lastUpdateState.status = LastUpdateState.FAIL
-		lastUpdateState.save()
+		lastUpdateState.update_status(lastUpdateState.FAIL)
 		raise
 	else:
-		lastUpdateState.status = LastUpdateState.SUCCESS
-		lastUpdateState.save()
+		lastUpdateState.update_status(lastUpdateState.SUCCESS)
 	return
