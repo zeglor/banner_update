@@ -26,6 +26,11 @@ function getCookie(name){
 
 // Launches banner update task
 function requestBannerUpdate(){
+	if(task_state == "PROGRESS"){
+		alert("Задание уже запущено!");
+		return;
+	}
+	
 	//get csrf
 	csrftoken = getCookie("csrftoken");
 	
@@ -74,17 +79,12 @@ function updateProgressBar(current, total, state){
 	}
 }
 
-// Changes button action and look based on current task state
-function updateButton(state){
+// Changes button look based on current task state
+// !! Stub
+function updateButtonStyle(state){
 	if(state == "PROGRESS"){
-		$("#updateButton").click(function(){
-			alert("Task in progress!");
-		});
 	}
 	else{
-		$("#updateButton").click(function(){
-			requestBannerUpdate();
-		});
 	}
 }
 
@@ -104,7 +104,7 @@ function statusPoll(){
 		success: function(data){
 			task_state = data["state"];
 			updateProgressBar(data["current"], data["total"], task_state);
-			updateButton(task_state);
+			updateButtonStyle(task_state);
 			pollInterval = 500;
 		},
 		complete: function(){
