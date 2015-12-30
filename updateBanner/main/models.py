@@ -4,8 +4,6 @@ from django.db import models, transaction
 from django.utils import timezone
 from main.tasks import updateBanners
 
-# Create your models here.
-
 class BaseUpdateTask(models.Model):
 	"""
 	Base class for LastUpdateTask and UpdateResult. Holds common fields of 2 classes
@@ -107,6 +105,7 @@ class Banner(models.Model):
 	campaign_id = models.BigIntegerField(db_index=True, default=0)
 	banner_id = models.BigIntegerField(default=0)
 	# yandex information fields
+	title = models.CharField(max_length = 200, default="")
 	
 	@classmethod
 	def getCampaignBannerIds(cls, campaign_id):
@@ -115,6 +114,24 @@ class Banner(models.Model):
 		"""
 		banners = cls.objects.filter(campaign_id=campaign_id)
 		return [banner.banner_id for banner in banners]
+	
+	@staticmethod
+	def fromDict(d, update_res):
+		"""
+		Returns Banner object with data from passed dict
+		"""
+		campaign_id = d.get('CampaignID', 0)
+		banner_id = d.get('BannerID', 0)
+		title = d.get('Title', '')
+		
+		banner = Banner(
+			update_result_key = update_res,
+			campaign_id=campaign_id,
+			banner_id=banner_id,
+			title=title,
+		)
+		
+		return banner
 
 def launch_update():
 	"""

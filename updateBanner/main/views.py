@@ -2,24 +2,13 @@ from __future__ import absolute_import
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
-from main.tasks import updateBanner, updateBanners
+from main.tasks import updateBanners
 from celery.result import AsyncResult
 from main.models import LastUpdateState, AlreadyRunning
 
 @ensure_csrf_cookie
 def index(request):
 	return render(request, 'main/index.html')
-
-def request_update(request):
-	updaterTask = UpdaterTask.get_or_create()
-	if updaterTask.isRunning:
-		pass
-	
-	updaterTask.run()
-
-def check_update(request):
-	pass
-	
 
 def request_update(request):
 	responseDict = {}
